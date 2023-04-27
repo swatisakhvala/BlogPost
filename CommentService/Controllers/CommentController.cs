@@ -19,6 +19,7 @@ namespace CommentService.Controllers
             this.mediator = mediator;
         }
 
+        //Method of add Comment
         [HttpPost]
         public async Task<dynamic> AddCommentAsync(BlogComment blogComment)
         {
