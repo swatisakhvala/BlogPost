@@ -1,79 +1,84 @@
 ﻿using Moq;
 using PostService.Model;
 using PostService.Repository;
-using PostService.Controllers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using MediatR;
 using CommentService.Model;
 using CommentService.Repository;
-using CommentService.Controllers;
+using PostService.Handler;
+using PostService.Query;
+using PostService.Data;
+using Microsoft.Extensions.Configuration;
+using PostService.Command;
+using CommentService.Handler;
+using CommentService.Command;
 
 namespace UnitTest
 {
     public class UnitTestController
     {
-        private readonly Mock<IPostRepository> PostRepository;
-        private readonly Mock<ICommentRepository> CommentRepository;
-        
+        private IConfiguration _config;
         public UnitTestController()
         {
-            PostRepository = new Mock<IPostRepository>();
-            CommentRepository = new Mock<ICommentRepository>();
+            var builder = new ConfigurationBuilder().AddJsonFile("appsettings.json");
+            _config = builder.Build();
+
         }
 
         [Fact]
-        public void GetBlogPostById_Post()
+        public async Task GetBlogPostById_Post()
         {
-            var mediator = new Mock<IMediator>();
             //arrange
             var postList = GetPostData();
-            PostRepository.Setup(x => x.GetPostByIdWithComment(4).Result)
-                .Returns(postList[1]);
-            var postController = new PostController(mediator.Object);
+
+            using var dbContext = new DbContextClass(_config);
+            var PostRepository = new PostRepository(dbContext);
+            var handler = new GetPostByIdHandler(PostRepository);
+            var query = new GetPostById { Id = 2 };
 
             //act
-            var postResult = postController.GetBlogPostByIdAsync(4);
+            var postResult = await handler.Handle(query, CancellationToken.None);
 
             //assert
+            Assert.Equal(postList[1].Id, postResult.Id);
             Assert.NotNull(postResult);
         }
 
         [Fact]
-        public void AddPost_Post()
+        public async Task AddPost_Post()
         {
-            var mediator = new Mock<IMediator>();
             //arrange
-            var postList = GetPostData();
-            PostRepository.Setup(x => x.AddPost(postList[1]).Result)
-                .Returns(postList[1]);
-            var postController = new PostController(mediator.Object);
+            var postList = GetPostData().LastOrDefault();
+
+            using var dbContext = new DbContextClass(_config);
+            var PostRepository = new PostRepository(dbContext);
+            var handler = new CreatePostHandler(PostRepository);
+            var query = new CreatePostCommand(postList.Title, postList.MetaTitle, postList.Slag, postList.Summary, postList.PostContent, false, DateTime.Now, DateTime.Now, DateTime.Now, null);
 
             //act
-            var postResult = postController.AddBlogPostAsync(postList[1]);
+            var postResult = await handler.Handle(query, CancellationToken.None);
 
             //assert
             Assert.NotNull(postResult);
+            Assert.NotEqual(0, postResult.Id);
         }
 
         [Fact]
-        public void AddComment_Comment()
+        public async Task AddComment_Comment()
         {
-            var mediator = new Mock<IMediator>();
             //arrange
-            var commentList = GetCommentData();
-            CommentRepository.Setup(x => x.AddComment(commentList[1]).Result)
-                .Returns(commentList[1]);
-            var commentController = new CommentController(mediator.Object);
+            var commentList = GetCommentData().LastOrDefault();
+
+
+            using var dbContext = new CommentService.Data.DbContextClass(_config);
+            var CommentRepository = new CommentRepository(dbContext);
+            var handler = new CreateCommentHandler(CommentRepository);
+            var query = new CreateCommentCommand(commentList.BlogPostId, commentList.Title, commentList.Comment, commentList.IsPublished, commentList.PublishedOn, DateTime.Now, DateTime.Now);
 
             //act
-            var commentResult = commentController.AddCommentAsync(commentList[1]);
+            var commentResult = await handler.Handle(query, CancellationToken.None);
 
             //assert
             Assert.NotNull(commentResult);
+            Assert.NotEqual(0, commentResult.Id);
         }
 
         private List<BlogPost> GetPostData()
@@ -96,7 +101,7 @@ namespace UnitTest
             },
              new BlogPost
             {
-                Id = 4,
+                Id = 2,
                 Title = "Engadget",
                 MetaTitle = "Engadget",
                 Slag = "Technology",
