@@ -24,6 +24,7 @@ builder.Services.AddMicrosoftIdentityWebApiAuthentication(configuration);
 
 builder.Services.AddMediatR(Assembly.GetExecutingAssembly());
 builder.Services.AddDbContext<DbContextClass>();
+builder.Services.AddStackExchangeRedisCache(options => { options.Configuration = configuration["RedisCacheUrl"]; });
 builder.Services.AddScoped<IPostRepository, PostRepository>();
 
 

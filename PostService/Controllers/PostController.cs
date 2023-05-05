@@ -13,6 +13,9 @@ using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Text;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace PostService.Controllers
 {
@@ -22,16 +25,54 @@ namespace PostService.Controllers
     public class PostController : ControllerBase
     {
         private readonly IMediator mediator;
-        public PostController(IMediator mediator)
+        private readonly IDistributedCache _cache;
+        public PostController(IMediator mediator, IDistributedCache cache)
         {
             this.mediator = mediator;
+            _cache = cache;
         }
 
-        [HttpGet("Id")]
-        public async Task<dynamic> GetBlogPostByIdAsync(int Id)
+        [HttpGet]
+        [Route("GetBlogPostByIdAsync/{Id}/{enableCache}")]
+        public async Task<dynamic> GetBlogPostByIdAsync(int Id, bool enableCache)
         {
-            var PostDetails = await mediator.Send(new GetPostById() { Id = Id });
-            return PostDetails;
+            if (!enableCache)
+            {
+                var PostDetails = await mediator.Send(new GetPostById() { Id = Id });
+                return PostDetails;
+            }
+
+            string cacheKey = Id.ToString();
+
+            // Trying to get data from the Redis cache
+            byte[] cachedData = await _cache.GetAsync(cacheKey);
+
+            BlogPost blogPost = new();
+            if (cachedData != null)
+            {
+                // If the data is found in the cache, encode and deserialize cached data.
+                var cachedDataString = Encoding.UTF8.GetString(cachedData);
+                blogPost = JsonSerializer.Deserialize<BlogPost>(cachedDataString);
+            }
+            else
+            {
+                // If the data is not found in the cache, then fetch data from database
+                blogPost = await mediator.Send(new GetPostById() { Id = Id });
+
+                // Serializing the data
+                string cachedDataString = JsonSerializer.Serialize(blogPost);
+                var dataToCache = Encoding.UTF8.GetBytes(cachedDataString);
+
+                // Setting up the cache options
+                DistributedCacheEntryOptions options = new DistributedCacheEntryOptions()
+                    .SetAbsoluteExpiration(DateTime.Now.AddMinutes(5))
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(3));
+
+                // Add the data into the cache
+                await _cache.SetAsync(cacheKey, dataToCache, options);
+            }
+
+            return blogPost;
         }
 
         [HttpPost]
