@@ -1,22 +1,17 @@
-﻿using PostService.Model;
-using PostService.Repository;
-using CommentService.Model;
-using CommentService.Repository;
-using PostService.Handler;
-using PostService.Query;
-using PostService.Data;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using PostService.Command;
-using CommentService.Handler;
-using CommentService.Command;
+using PostService.Handler;
+using PostService.Model;
+using PostService.Query;
+using PostService.Repository;
+using PostService.Data;
 
-
-namespace UnitTest
+namespace UnitTest.Controllers
 {
-    public class UnitTestController
+    public class PostController
     {
         private IConfiguration _config;
-        public UnitTestController()
+        public PostController()
         {
             var builder = new ConfigurationBuilder().AddJsonFile("appsettings.json");
             _config = builder.Build();
@@ -64,7 +59,7 @@ namespace UnitTest
             //assert
             Assert.NotNull(postResult);
             Assert.NotEqual(0, postResult.Id);
-            Assert.Contains(postResult.Title, GetPostData().Select(x=>x.Title));
+            Assert.Contains(postResult.Title, GetPostData().Select(x => x.Title));
         }
 
         [Fact]
@@ -78,37 +73,7 @@ namespace UnitTest
             await Assert.ThrowsAsync<ArgumentNullException>(async () => await handler.Handle(null, CancellationToken.None));
         }
 
-        [Fact]
-        public async Task AddComment_Comment()
-        {
-            //arrange
-            var commentList = GetCommentData().LastOrDefault();
 
-
-            using var dbContext = new CommentService.Data.DbContextClass(_config);
-            var CommentRepository = new CommentRepository(dbContext);
-            var handler = new CreateCommentHandler(CommentRepository);
-            var query = new CreateCommentCommand(commentList.BlogPostId, commentList.Title, commentList.Comment, commentList.IsPublished, commentList.PublishedOn, DateTime.Now, DateTime.Now);
-
-            //act
-            var commentResult = await handler.Handle(query, CancellationToken.None);
-
-            //assert
-            Assert.NotNull(commentResult);
-            Assert.NotEqual(0, commentResult.Id);
-            Assert.Contains(commentResult.Comment, GetCommentData().Select(x => x.Comment));
-        }
-
-        [Fact]
-        public async Task AddComment_NullCommand_ThrowsArgumentNullException()
-        {
-            using var dbContext = new CommentService.Data.DbContextClass(_config);
-            var CommentRepository = new CommentRepository(dbContext);
-            var handler = new CreateCommentHandler(CommentRepository);
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentNullException>(async () => await handler.Handle(null, CancellationToken.None));
-        }
 
         private List<BlogPost> GetPostData()
         {
@@ -147,34 +112,5 @@ namespace UnitTest
         }
 
 
-        private List<BlogComment> GetCommentData()
-        {
-            List<BlogComment> commentData = new List<BlogComment>
-        {
-            new BlogComment
-            {
-                Id = 1,
-                BlogPostId = 1,
-                Title = "TechCrunch",
-                Comment = "Great share!",
-                IsPublished = true,
-                PublishedOn= DateTime.Now,
-                CreatedOn = DateTime.Now,
-                UpdatedOn = DateTime.Now,
-            },
-             new BlogComment
-            {
-                Id = 2,
-                BlogPostId = 1,
-                Title = "Engadget",
-                Comment = "Amazing write-up!",
-                IsPublished = true,
-                PublishedOn= DateTime.Now,
-                CreatedOn = DateTime.Now,
-                UpdatedOn = DateTime.Now,
-            },
-        };
-            return commentData;
-        }
     }
 }
