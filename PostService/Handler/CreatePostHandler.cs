@@ -1,4 +1,5 @@
-﻿using MediatR;
+﻿using Azure.Core;
+using MediatR;
 using PostService.Command;
 using PostService.Model;
 using PostService.Query;
@@ -17,6 +18,11 @@ namespace PostService.Handler
 
         public async Task<BlogPost> Handle(CreatePostCommand createPostCommand, CancellationToken cancellationToken) 
         {
+            if (createPostCommand == null)
+            {
+                throw new ArgumentNullException(nameof(createPostCommand), "AddPostCommand cannot be null.");
+            }
+
             var post = new BlogPost()
             {
                 Title = createPostCommand.Title,

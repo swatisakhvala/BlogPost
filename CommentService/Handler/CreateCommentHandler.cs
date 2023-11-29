@@ -16,6 +16,11 @@ namespace CommentService.Handler
 
         public async Task<BlogComment> Handle(CreateCommentCommand createPostCommand, CancellationToken cancellationToken) 
         {
+            if (createPostCommand == null)
+            {
+                throw new ArgumentNullException(nameof(createPostCommand), "AddCommentCommand cannot be null.");
+            }
+
             var comment = new BlogComment()
             {
                 Title = createPostCommand.Title,

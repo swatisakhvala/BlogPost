@@ -1,5 +1,4 @@
-﻿using Moq;
-using PostService.Model;
+﻿using PostService.Model;
 using PostService.Repository;
 using CommentService.Model;
 using CommentService.Repository;
@@ -10,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using PostService.Command;
 using CommentService.Handler;
 using CommentService.Command;
+
 
 namespace UnitTest
 {
@@ -34,12 +34,17 @@ namespace UnitTest
             var handler = new GetPostByIdHandler(PostRepository);
             var query = new GetPostById { Id = 2 };
 
+            int invalidId = 100;
+
             //act
             var postResult = await handler.Handle(query, CancellationToken.None);
+            var result = await handler.Handle(new GetPostById { Id = invalidId }, CancellationToken.None);
 
             //assert
             Assert.Equal(postList[1].Id, postResult.Id);
             Assert.NotNull(postResult);
+
+            Assert.Null(result); // Ensure null is returned for an invalid ID
         }
 
         [Fact]
@@ -59,6 +64,18 @@ namespace UnitTest
             //assert
             Assert.NotNull(postResult);
             Assert.NotEqual(0, postResult.Id);
+            Assert.Contains(postResult.Title, GetPostData().Select(x=>x.Title));
+        }
+
+        [Fact]
+        public async Task AddPost_NullCommand_ThrowsArgumentNullException()
+        {
+            using var dbContext = new DbContextClass(_config);
+            var PostRepository = new PostRepository(dbContext);
+            var handler = new CreatePostHandler(PostRepository);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentNullException>(async () => await handler.Handle(null, CancellationToken.None));
         }
 
         [Fact]
@@ -79,6 +96,18 @@ namespace UnitTest
             //assert
             Assert.NotNull(commentResult);
             Assert.NotEqual(0, commentResult.Id);
+            Assert.Contains(commentResult.Comment, GetCommentData().Select(x => x.Comment));
+        }
+
+        [Fact]
+        public async Task AddComment_NullCommand_ThrowsArgumentNullException()
+        {
+            using var dbContext = new CommentService.Data.DbContextClass(_config);
+            var CommentRepository = new CommentRepository(dbContext);
+            var handler = new CreateCommentHandler(CommentRepository);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentNullException>(async () => await handler.Handle(null, CancellationToken.None));
         }
 
         private List<BlogPost> GetPostData()
